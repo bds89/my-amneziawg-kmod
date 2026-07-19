@@ -13,7 +13,7 @@ jobs:
       - name: Установка зависимостей
         run: |
           sudo apt update
-          sudo apt install -y build-essential bawk gawk gcc-multilib g++-multilib gettext git libncurses5-dev libssl-dev python3-distutils rsync unzip zlib1g-dev file wget
+          sudo apt install -y build-essential gawk gcc-multilib g++-multilib gettext git libncurses5-dev libssl-dev python3-distutils rsync unzip zlib1g-dev file wget
 
       - name: Скачивание SDK OpenWrt 24.10.2
         run: |
