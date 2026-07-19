@@ -13,13 +13,13 @@ jobs:
       - name: Установка зависимостей
         run: |
           sudo apt update
-          sudo apt install -y build-essential gawk gcc-multilib g++-multilib gettext git libncurses5-dev libssl-dev python3-distutils rsync unzip zlib1g-dev file wget
+          sudo apt install -y build-essential gawk gcc-multilib g++-multilib gettext git libncurses5-dev libssl-dev python3-distutils rsync unzip zlib1g-dev file wget zstd
 
       - name: Скачивание SDK OpenWrt 24.10.2
         run: |
-          # Скачиваем официальный SDK именно для вашей версии 24.10.2 и архитектуры rockchip/armv8
+          # Скачиваем SDK в новом формате .tar.zst
           wget https://openwrt.org
-          tar -xf openwrt-sdk-*.tar.xz
+          tar --zstd -xf openwrt-sdk-*.tar.zst
           mv openwrt-sdk-* sdk
 
       - name: Подмена vermagic и настройка фидов
@@ -32,21 +32,19 @@ jobs:
           # Добавляем репозиторий AmneziaWG
           echo "src-git amneziawg https://github.com" >> feeds.conf.default
           
-          # Обновляем и устанавливаем пакеты
+          # Полное обновление базовых фидов, необходимых для зависимостей
           ./scripts/feeds update -a
           ./scripts/feeds install -a
-          ./scripts/feeds update amneziawg
-          ./scripts/feeds install -a -p amneziawg
 
       - name: Выбор пакетов для компиляции
         run: |
           cd sdk
-          # Выбираем модуль ядра, утилиты и LuCI как внешние модули (пакеты .ipk)
+          # Выбираем AmneziaWG как внешний модуль
           echo "CONFIG_PACKAGE_kmod-amneziawg=m" >> .config
           echo "CONFIG_PACKAGE_amneziawg-tools=m" >> .config
           echo "CONFIG_PACKAGE_luci-proto-amneziawg=m" >> .config
           
-          # Выключаем глобальную подпись пакетов, чтобы роутер не ругался на сторонний ключ
+          # Отключаем обязательную подпись пакетов
           echo "CONFIG_SIGNED_PACKAGES=" >> .config
           
           make defconfig
@@ -54,7 +52,8 @@ jobs:
       - name: Компиляция пакетов
         run: |
           cd sdk
-          # Собираем модуль и сопутствующие утилиты
+          # Сначала готовим базовые инструменты и зависимости ядра, затем собираем AWG
+          make package/kernel/linux/compile V=s
           make package/kmod-amneziawg/compile V=s
           make package/amneziawg-tools/compile V=s
           make package/luci-proto-amneziawg/compile V=s
@@ -63,7 +62,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: amneziawg-friendlywrt-24.10.2
-          # Сохраняем все собранные .ipk файлы
           path: |
             sdk/bin/targets/rockchip/armv8/packages/kmod-amneziawg_*.ipk
             sdk/bin/packages/aarch64_generic/amneziawg/amneziawg-tools_*.ipk
